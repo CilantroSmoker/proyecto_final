@@ -1,66 +1,90 @@
+import sys
 import matplotlib
-matplotlib.use('TkAgg')  # <--- Esto le dice a Python: "¡Usa ventanas interactivas!"
+
+if sys.platform.startswith('linux'):
+    try:
+        matplotlib.use('TkAgg')
+    except ImportError:
+        pass
+
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.widgets import Slider
 
+# ==========================================
+# 1. ENTRADAS DINÁMICAS (Consola)
+# ==========================================
+print("--- BIENVENIDO AL GEOGEBRA DE RIEMANN ---")
+print("Puedes usar funciones matemáticas usando 'np.' (Ejemplo: np.sin(x), x**2, np.cos(x))")
+print("Para usar Pi, escribe: np.pi")
+print("-" * 40)
 
-# 1. Definición de la función y datos
+# El usuario ingresa la función como texto
+funcion_texto = input("Ingresa f(x) [Por defecto: -x**2 + 4]: ")
+if not funcion_texto.strip():
+    funcion_texto = "-x**2 + 4"
+
+# El usuario ingresa los límites (evaluando texto por si pone np.pi)
+str_a = input("Ingresa límite inferior 'a' [Por defecto: -2]: ")
+a = eval(str_a) if str_a.strip() else -2
+
+str_b = input("Ingresa límite superior 'b' [Por defecto: 2]: ")
+b = eval(str_b) if str_b.strip() else 2
+
+# Convertimos el texto en una función real de Python usando eval()
 def f(x):
-    return -x**2 + 4
+    return eval(funcion_texto)
 
-a = -2
-b = 2
-n = 4
-delta_x = (b - a) / n
-
-# Listas para guardar los datos que vamos a graficar
-lista_ci = []
-lista_alturas = []
-area_total = 0
-
-# 2. El bucle matemático (igual al tuyo)
-for i in range(n):
-    c_i = a + i * delta_x
-    altura = f(c_i)
-    area_rectangulo = altura * delta_x
-    area_total += area_rectangulo
-    
-    # Guardamos los puntos para el gráfico
-    lista_ci.append(c_i)
-    lista_alturas.append(altura)
-
-print(f"El área aproximada es: {area_total}")
+n_inicial = 4
 
 # ==========================================
-# 3. BLOQUE DE GRÁFICO (Estilo GeoGebra)
+# 2. CONFIGURACIÓN GRÁFICA
 # ==========================================
+fig, ax = plt.subplots(figsize=(10, 7))
+plt.subplots_adjust(bottom=0.25)
 
-# Generamos puntos continuos para dibujar la curva suave de la función
-x_curva = np.linspace(a - 1, b + 1, 1000)
+# Generar curva de fondo dinámica
+x_curva = np.linspace(a - 0.5, b + 0.5, 1000)
 y_curva = f(x_curva)
 
-# Crear la figura
-plt.figure(figsize=(10, 6))
+def calcular_y_dibujar(n_actual):
+    ax.clear()
+    
+    delta_x = (b - a) / n_actual
+    area_total = 0
+    lista_ci = []
+    lista_alturas = []
+    
+    for i in range(int(n_actual)):
+        c_i = a + i * delta_x
+        altura = f(c_i)
+        area_total += altura * delta_x
+        lista_ci.append(c_i)
+        lista_alturas.append(altura)
+        
+    ax.plot(x_curva, y_curva, color='blue', linewidth=2, label=f'$f(x) = {funcion_texto}$')
+    ax.bar(lista_ci, lista_alturas, width=delta_x, align='edge', 
+           alpha=0.5, color='orange', edgecolor='darkorange', label='Rectángulos de Riemann')
+    ax.scatter(lista_ci, lista_alturas, color='red', zorder=5, s=15)
+    
+    ax.axhline(0, color='black', linewidth=1.2)
+    ax.axvline(0, color='black', linewidth=1.2)
+    ax.set_title(f'Función: {funcion_texto}\nIntervalos (n) = {int(n_actual)} | Área aprox = {area_total:.4f}', fontsize=12)
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.legend(loc='upper right')
+    ax.set_ylim(min(y_curva) - 1, max(y_curva) + 1)
 
-# Dibujar la curva de la función en azul
-plt.plot(x_curva, y_curva, color='blue', linewidth=2, label=f'$f(x) = x^2 - 4x$')
+calcular_y_dibujar(n_inicial)
 
-# Dibujar los rectángulos de Riemann
-# 'align="edge"' hace que el rectángulo empiece en C_i (extremo izquierdo)
-plt.bar(lista_ci, lista_alturas, width=delta_x, align='edge', 
-        alpha=0.4, color='orange', edgecolor='darkorange', label='Rectángulos de Riemann')
+# ==========================================
+# 3. DESLIZADOR (0 a 100)
+# ==========================================
+ax_slider = plt.axes([0.15, 0.1, 0.7, 0.03])
+slider_n = Slider(ax=ax_slider, label='Intervalos (n) ', valmin=1, valmax=100, valinit=n_inicial, valfmt='%d', color='skyblue')
 
-# Dibujar los puntos C_i sobre la curva
-plt.scatter(lista_ci, lista_alturas, color='red', zorder=5, label='Representantes ($C_i$)')
+def actualizar(val):
+    calcular_y_dibujar(slider_n.val)
+    fig.canvas.draw_idle()
 
-# Configuración y estética del gráfico
-plt.axhline(0, color='black', linewidth=1.2) # Eje X
-plt.axvline(0, color='black', linewidth=1.2) # Eje Y
-plt.title(f'Suma de Riemann (Izquierda) - Área aprox: {area_total}', fontsize=14)
-plt.xlabel('Eje X')
-plt.ylabel('Eje Y')
-plt.grid(True, linestyle='--', alpha=0.6)
-plt.legend()
-
-# Mostrar la ventana con el gráfico interactivo
+slider_n.on_changed(actualizar)
 plt.show()

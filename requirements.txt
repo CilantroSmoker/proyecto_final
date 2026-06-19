@@ -12,3 +12,6 @@ six==1.17.0
 
 # para ubuntu
 sudo apt update && sudo apt install python3-tk
+
+# para kashi os
+sudo pacman -S tk
